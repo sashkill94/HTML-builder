@@ -1,4 +1,4 @@
-const readline = require('node:readline');
+const readline = require('readline');
 const fs = require('fs');
 const path = require('path');
 const process = require('process');
@@ -13,7 +13,7 @@ let rl = readline.createInterface({
 process.stdout.write('Enter a string:\n')
 
 rl.on('line', (input) => {
-  if (input === 'exit') {
+  if (input.toLowerCase() === 'exit') {
     console.log('Have a nice day, User!');
     rl.close();
   } else {

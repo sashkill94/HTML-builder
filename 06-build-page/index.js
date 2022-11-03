@@ -1,11 +1,30 @@
 const fs = require('fs');
 const path = require('path');
-const readline = require('node:readline');
 
 async function createFolder(dirPath) {
-  await fs.promises.mkdir(dirPath, {
+  fs.promises.mkdir(dirPath, {
     recursive: true
   });
+}
+
+async function cleanFolder(folderPath) {
+  const files = await fs.promises.readdir(folderPath, {
+    withFileTypes: true
+  });
+
+  if (files.length === 0) {
+    await fs.promises.rmdir(folderPath);
+  } else {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.isDirectory()) {
+        await cleanFolder(path.join(folderPath, file.name));
+      } else {
+        await fs.promises.unlink(path.join(folderPath, file.name));
+      }
+    }
+    await fs.promises.rmdir(folderPath);
+  }
 }
 
 async function getArrayFromHtml(path) {
@@ -54,9 +73,9 @@ async function mergeCssFiles() {
   for (const file of files) {
     if (file.isFile() && path.extname(file.name) === '.css') {
       const readableStream = fs.createReadStream(path.join(__dirname, 'styles', file.name));
-      readableStream.on('readable', function(){
+      readableStream.on('readable', function () {
         readableStream.pipe(writeableStream);
-        if (this.read() != null){
+        if (this.read() != null) {
           writeableStream.write('\n')
         }
       });
@@ -66,30 +85,32 @@ async function mergeCssFiles() {
 }
 
 async function copyFolders(from, to) {
-  createFolder(to);
-  const folderFiles = await fs.promises.readdir(to, {
-    withFileTypes: true
-  });
-  for (const file of folderFiles){
-    if(file.isFile()){
-      fs.promises.unlink(path.join(to, file.name));
-    }
-  }
+  await createFolder(to);
   const files = await fs.promises.readdir(from, {
     withFileTypes: true
   });
   if (files) {
     for (const file of files) {
-      if (file.isDirectory()){
-        copyFolders(path.join(from, file.name), path.join(to, file.name));
+      if (file.isDirectory()) {
+        await copyFolders(path.join(from, file.name), path.join(to, file.name));
       } else {
-        fs.promises.copyFile(path.join(from, file.name), path.join(to, file.name));
+        await fs.promises.copyFile(path.join(from, file.name), path.join(to, file.name));
       }
     }
   }
 }
 
-createFolder(path.join(__dirname, 'project-dist'));
-insertComponents();
-mergeCssFiles();
-copyFolders(path.join(__dirname, 'assets'), path.join(__dirname, 'project-dist', 'assets'));
+async function start() {
+  try {
+    await fs.promises.access(path.join(__dirname, 'project-dist'));
+    await cleanFolder(path.join(__dirname, 'project-dist'));
+  } catch {
+  }
+  // await cleanFolder(path.join(__dirname, 'project-dist'));
+  await createFolder(path.join(__dirname, 'project-dist'));
+  await insertComponents();
+  await mergeCssFiles();
+  await copyFolders(path.join(__dirname, 'assets'), path.join(__dirname, 'project-dist', 'assets'));
+}
+
+start();
